@@ -1,4 +1,4 @@
-// Copyright 2021 Kirill Scherba <kirill@scherba.ru>. All rights reserved.
+// Copyright 2021-2022 Kirill Scherba <kirill@scherba.ru>. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -49,11 +49,17 @@ connect:
 		// Unmarshal offer
 		peer := sig.Peer
 		var offer webrtc.SessionDescription
-		json.Unmarshal(sig.Data, &offer)
+
+		d, err := json.Marshal(sig.Data)
+		log.Println("sig.Data", string(d))
+
+		json.Unmarshal(d, &offer)
 		if err != nil {
 			log.Println("can't unmarshal offer, error:", err)
 			continue
 		}
+
+		// offer = sig.Data.(webrtc.SessionDescription)
 		log.Printf("got offer from %s", sig.Peer)
 
 		// Prepare the configuration
@@ -84,12 +90,7 @@ connect:
 		// Send AddICECandidate to remote peer
 		pc.OnICECandidate(func(i *webrtc.ICECandidate) {
 			if i != nil {
-				candidateData, err := json.Marshal(i)
-				if err != nil {
-					log.Println("can't marshal ICECandidate, error:", err)
-					return
-				}
-				signal.WriteCandidate(peer, candidateData)
+				signal.WriteCandidate(peer, i)
 			}
 		})
 
@@ -97,10 +98,10 @@ connect:
 		pc.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
 			switch state {
 			case webrtc.ICEGathererStateGathering:
-				log.Println("Collection of candidates has begin")
+				log.Println("Collection of local candidates has begin")
 
 			case webrtc.ICEGathererStateComplete:
-				log.Println("Collection of candidates is finished ")
+				log.Println("Collection of local candidates is finished ")
 				signal.WriteCandidate(peer, nil)
 			}
 		})
@@ -126,40 +127,10 @@ connect:
 		}
 
 		// Send answer to signal server
-		answerData, err := json.Marshal(answer)
-		if err != nil {
-			log.Println("can't marshal answer, error:", err)
-			continue
-		}
-		signal.WriteAnswer(peer, answerData)
+		signal.WriteAnswer(peer, answer)
 
 		// Get client ICECandidate
-		for {
-			sig, err = signal.WaitSignal()
-			if err != nil {
-				break
-			}
-
-			// Unmarshal ICECandidate signal
-			var i webrtc.ICECandidate
-			if len(sig.Data) == 0 {
-				log.Println("All ICECandidate processed")
-				break
-			}
-			err = json.Unmarshal(sig.Data, &i)
-			if err != nil {
-				log.Println("can't unmarshal candidate, error:", err)
-				skipRead = true
-				break
-			}
-			log.Printf("Got ICECandidate from %s\n", sig.Peer)
-
-			// Add servers ICECandidate
-			err = pc.AddICECandidate(i.ToJSON())
-			if err != nil {
-				log.Println("can't add ICECandidate, error:", err)
-			}
-		}
+		teowebrtc_client.GetICECandidates(signal, pc)
 	}
 
 	// select {}

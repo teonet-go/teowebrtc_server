@@ -1,4 +1,4 @@
-// Copyright 2021 Kirill Scherba <kirill@scherba.ru>. All rights reserved.
+// Copyright 2021-2022 Kirill Scherba <kirill@scherba.ru>. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,7 +13,7 @@ import (
 	"github.com/teonet-go/teowebrtc_server"
 )
 
-var addr = flag.String("addr", "localhost:8080", "signal server address")
+var addr = flag.String("addr", "localhost:8081", "signal server address")
 var name = flag.String("name", "server-1", "this server name")
 
 func main() {
