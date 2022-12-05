@@ -8,8 +8,8 @@ go 1.19
 
 require (
 	github.com/pion/webrtc/v3 v3.1.49
-	github.com/teonet-go/teowebrtc_client v0.0.7
-	github.com/teonet-go/teowebrtc_signal_client v0.0.7
+	github.com/teonet-go/teowebrtc_client v0.0.8
+	github.com/teonet-go/teowebrtc_signal_client v0.0.8
 
 )
 

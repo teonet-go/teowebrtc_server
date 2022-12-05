@@ -21,15 +21,15 @@ func main() {
 	log.SetFlags(0)
 
 	err := teowebrtc_server.Connect(*addr, *name, func(peer string, dc *teowebrtc_client.DataChannel) {
-		log.Println("Connected to", peer)
+		log.Println("connected to", peer)
 
 		dc.OnOpen(func() {
-			log.Println("Data channel opened", peer)
+			log.Println("data channel opened", peer)
 		})
 
 		// Register text message handling
 		dc.OnMessage(func(data []byte) {
-			log.Printf("Got Message from peer '%s': '%s'\n", peer, string(data))
+			log.Printf("got Message from peer '%s': '%s'\n", peer, string(data))
 			// Send echo answer
 			d := []byte("Answer to: ")
 			data = append(d, data...)

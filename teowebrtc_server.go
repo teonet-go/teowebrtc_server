@@ -10,9 +10,9 @@ import (
 	"log"
 	"time"
 
+	"github.com/pion/webrtc/v3"
 	"github.com/teonet-go/teowebrtc_client"
 	"github.com/teonet-go/teowebrtc_signal_client"
-	"github.com/pion/webrtc/v3"
 )
 
 func Connect(signalServerAddr, login string, connected func(peer string, dc *teowebrtc_client.DataChannel)) (err error) {
@@ -24,11 +24,11 @@ connect:
 	// Connect to signal server
 	err = signal.Connect("ws", signalServerAddr, login)
 	if err != nil {
-		log.Println("Can't connect to signal server, error:", err)
+		log.Println("can't connect to signal server, error:", err)
 		time.Sleep(5 * time.Second)
 		goto connect
 	}
-	log.Println("Connected")
+	log.Println("connected")
 
 	var skipRead = false
 
@@ -51,7 +51,6 @@ connect:
 		var offer webrtc.SessionDescription
 
 		d, err := json.Marshal(sig.Data)
-		log.Println("sig.Data", string(d))
 
 		json.Unmarshal(d, &offer)
 		if err != nil {
@@ -79,7 +78,7 @@ connect:
 
 		// Add handlers for setting up the connection.
 		pc.OnSignalingStateChange(func(state webrtc.SignalingState) {
-			log.Println("Signal changed:", state)
+			log.Println("signal changed:", state)
 		})
 
 		// Add handlers for setting up the connection.
@@ -90,7 +89,7 @@ connect:
 		// Send AddICECandidate to remote peer
 		pc.OnICECandidate(func(i *webrtc.ICECandidate) {
 			if i != nil {
-				signal.WriteCandidate(peer, i)
+				signal.WriteCandidate(peer, i.ToJSON())
 			}
 		})
 
@@ -98,16 +97,16 @@ connect:
 		pc.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
 			switch state {
 			case webrtc.ICEGathererStateGathering:
-				log.Println("Collection of local candidates has begin")
+				log.Println("collection of local candidates has begin")
 
 			case webrtc.ICEGathererStateComplete:
-				log.Println("Collection of local candidates is finished ")
+				log.Println("collection of local candidates is finished")
 				signal.WriteCandidate(peer, nil)
 			}
 		})
 
 		pc.OnDataChannel(func(d *webrtc.DataChannel) {
-			log.Printf("New DataChannel %s %d\n", d.Label(), d.ID())
+			log.Printf("new DataChannel %s %d\n", d.Label(), d.ID())
 			connected(peer, teowebrtc_client.NewDataChannel(d))
 		})
 
