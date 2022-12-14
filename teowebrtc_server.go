@@ -84,6 +84,9 @@ connect:
 		// Add handlers for setting up the connection.
 		pc.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
 			log.Printf("ICE Connection State has changed: %s\n", connectionState.String())
+			if connectionState == webrtc.ICEConnectionStateDisconnected {
+				pc.Close()
+			}
 		})
 
 		// Send AddICECandidate to remote peer
@@ -105,9 +108,9 @@ connect:
 			}
 		})
 
-		pc.OnDataChannel(func(d *webrtc.DataChannel) {
-			log.Printf("new DataChannel %s %d\n", d.Label(), d.ID())
-			connected(peer, teowebrtc_client.NewDataChannel(d))
+		pc.OnDataChannel(func(dc *webrtc.DataChannel) {
+			log.Printf("new DataChannel %s %d\n", dc.Label(), dc.ID())
+			connected(peer, teowebrtc_client.NewDataChannel(dc))
 		})
 
 		// Set the remote SessionDescription
