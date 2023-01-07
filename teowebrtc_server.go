@@ -1,4 +1,4 @@
-// Copyright 2021-2022 Kirill Scherba <kirill@scherba.ru>. All rights reserved.
+// Copyright 2021-2023 Kirill Scherba <kirill@scherba.ru>. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,15 +7,211 @@ package teowebrtc_server
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/pion/webrtc/v3"
 	"github.com/teonet-go/teowebrtc_client"
+	"github.com/teonet-go/teowebrtc_signal"
 	"github.com/teonet-go/teowebrtc_signal_client"
 )
 
-func Connect(signalServerAddr, login string, connected func(peer string, dc *teowebrtc_client.DataChannel)) (err error) {
+// This WebRTC server default commands
+const (
+	cmdSubscribe = "subscribe"
+	cmdClients   = "clients"
+	cmdList      = "list"
+)
+
+// WebRTC data and methods receiver
+type WebRTC struct {
+	Peers
+	MarshalJson   MarshalJsonType
+	UnmarshalJson UnmarshalJsonType
+}
+
+type TeogwData interface {
+	GetID() uint32
+	GetAddress() string
+	GetCommand() string
+	GetData() (data []byte)
+	// UnmarshalJson(data []byte) (gwData TeogwData, err error)
+}
+
+type UnmarshalJsonType func(data []byte) (gwData TeogwData, err error)
+type MarshalJsonType func(gwData TeogwData, command string, inData []byte, inErr error) (data []byte, err error)
+
+// Create WebRTC object Start Signal server, start WebRTC server
+func New(signalAddr, signalAddrTls, name string,
+	marshalJson MarshalJsonType,
+	unmarshalJson UnmarshalJsonType,
+) (w *WebRTC, err error) {
+
+	// Create WebRTC object
+	w = new(WebRTC)
+	w.Peers.Init()
+	w.Subscribe.Init()
+	w.MarshalJson = marshalJson
+	w.UnmarshalJson = unmarshalJson
+
+	// Start and process signal server
+	go teowebrtc_signal.New(signalAddr, signalAddrTls)
+	time.Sleep(1 * time.Millisecond) // Wait while ws server start
+
+	// Start and process webrtc server
+	err = Connect(signalAddr, name, w.connected)
+	if err != nil {
+		log.Fatalln("connect error:", err)
+	}
+
+	return
+}
+
+// Connected calls when a peer connected and Data channel created
+func (w *WebRTC) connected(peer string, dc *teowebrtc_client.DataChannel) {
+	log.Println("connected to", peer)
+
+	dc.OnOpen(func() {
+		log.Println("data channel opened", peer)
+		w.Add(peer, dc)
+	})
+
+	dc.OnClose(func() {
+		log.Println("data channel closed", peer)
+		w.Del(peer, dc)
+	})
+
+	// Register text message handling
+	dc.OnMessage(func(data []byte) {
+		log.Printf("got message from peer '%s': '%s'\n", peer, string(data))
+
+		// Unmarshal json command
+		// var request TeogwData
+		// err := json.Unmarshal(data, &request)
+		request, err := w.UnmarshalJson(data)
+		log.Println("request:", request, err)
+		switch {
+		// Send teonet proxy request
+		// case err == nil && len(request.GetAddress()) > 0 && len(request.GetCommand()) > 0:
+		// 	log.Println("got proxy request:", request)
+		// 	go w.proxyRequest(dc, &request)
+
+		// Execute request to this server
+		case err == nil && len(request.GetAddress()) == 0 && len(request.GetCommand()) > 0:
+			log.Println("got server request:", request)
+			go w.serverRequest(peer, dc, request)
+
+		// Send echo answer
+		default:
+			// d := []byte("Answer to: ")
+			// data = append(d, data...)
+			data = []byte(fmt.Sprintf(`{"address":"","message":"Answer to: %s"}`, "unknown"))
+			dc.Send(data)
+		}
+	})
+}
+
+// Process teonet proxy request: Connect to teonet peer, send request, get
+// answer and resend answer to tru sender
+// func (w *WebRTC) proxyRequest(dc *teowebrtc_client.DataChannel, gw *teogw.TeogwData) {
+
+// 	var err error
+
+// 	// Send answer before return
+// 	defer w.answer(dc, gw, err)
+
+// 	// Send api request to teonet peer
+// 	data, err := w.proxyCall(gw.Address, gw.Command, gw.Data)
+// 	if err != nil {
+// 		return
+// 	}
+
+// 	gw.SetData(data)
+// }
+
+// Process this server request
+func (w *WebRTC) serverRequest(peer string, dc *teowebrtc_client.DataChannel,
+	gw TeogwData) {
+
+	var err error
+	var data []byte
+	var command = gw.GetCommand()
+
+	// Process request
+	switch command {
+
+	// Get number of clients
+	case cmdClients:
+		l := w.Len()
+		data = []byte(fmt.Sprintf("%d", l))
+
+	// Get list of clients
+	case cmdList:
+		data, err = w.getList()
+
+	// Subscribe to event
+	case cmdSubscribe:
+		w.subscribeRequest(peer, dc, gw)
+		data = []byte("done")
+
+	// Wrong request
+	default:
+		err = errors.New("wrong request")
+	}
+
+	// Send answer
+	w.answer(dc, gw, command, data, err)
+}
+
+// getList return json encoded list of clients
+func (w *WebRTC) getList() ([]byte, error) {
+	type List []string
+	var list List
+	for p := range w.ListCh() {
+		list = append(list, p.Name)
+	}
+	return json.Marshal(list)
+}
+
+// Process this server subscribe request
+func (w *WebRTC) subscribeRequest(peer string, dc *teowebrtc_client.DataChannel,
+	gw TeogwData) {
+
+	request := string(gw.GetData())
+	log.Println("got subscribe request:", request)
+	switch request {
+	case cmdClients:
+		w.Onchange(peer, dc, func() {
+			l := w.Len()
+			data := []byte(fmt.Sprintf("%d", l))
+			w.answer(dc, gw, request, data, nil)
+		})
+	case cmdList:
+		w.Onchange(peer, dc, func() {
+			data, err := w.getList()
+			w.answer(dc, gw, request, data, err)
+		})
+	}
+}
+
+// Send answer to data channel
+func (w *WebRTC) answer(dc *teowebrtc_client.DataChannel, gw TeogwData,
+	inCommand string, inData []byte, inErr error) (err error) {
+
+	// Create data from gw, command, data and error and send it to dc
+	data, err := w.MarshalJson(gw, inCommand, inData, inErr)
+	if err != nil {
+		return
+	}
+	err = dc.Send(data)
+	return
+}
+
+// Connect to existing signal server and start WebRCT server
+func Connect(signalServerAddr, login string,
+	connected func(peer string, dc *teowebrtc_client.DataChannel)) (err error) {
 
 	// Create signal server client
 	signal := teowebrtc_signal_client.New()
@@ -134,7 +330,4 @@ connect:
 		// Get client ICECandidate
 		teowebrtc_client.GetICECandidates(signal, pc)
 	}
-
-	// select {}
-	// return
 }
