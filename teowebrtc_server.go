@@ -28,6 +28,7 @@ const (
 // WebRTC data and methods receiver
 type WebRTC struct {
 	Peers
+	ProxyCall     ProxyCallType
 	MarshalJson   MarshalJsonType
 	UnmarshalJson UnmarshalJsonType
 }
@@ -37,9 +38,9 @@ type TeogwData interface {
 	GetAddress() string
 	GetCommand() string
 	GetData() (data []byte)
-	// UnmarshalJson(data []byte) (gwData TeogwData, err error)
 }
 
+type ProxyCallType func(address, command string, data []byte) ([]byte, error)
 type UnmarshalJsonType func(data []byte) (gwData TeogwData, err error)
 type MarshalJsonType func(gwData TeogwData, command string, inData []byte, inErr error) (data []byte, err error)
 
@@ -61,10 +62,11 @@ func New(signalAddr, signalAddrTls, name string,
 	time.Sleep(1 * time.Millisecond) // Wait while ws server start
 
 	// Start and process webrtc server
-	err = Connect(signalAddr, name, w.connected)
-	if err != nil {
-		log.Fatalln("connect error:", err)
-	}
+	// err = Connect(signalAddr, name, w.connected)
+	// if err != nil {
+	// 	log.Fatalln("connect error:", err)
+	// }
+	go Connect(signalAddr, name, w.connected)
 
 	return
 }
@@ -88,15 +90,13 @@ func (w *WebRTC) connected(peer string, dc *teowebrtc_client.DataChannel) {
 		log.Printf("got message from peer '%s': '%s'\n", peer, string(data))
 
 		// Unmarshal json command
-		// var request TeogwData
-		// err := json.Unmarshal(data, &request)
 		request, err := w.UnmarshalJson(data)
 		log.Println("request:", request, err)
 		switch {
 		// Send teonet proxy request
-		// case err == nil && len(request.GetAddress()) > 0 && len(request.GetCommand()) > 0:
-		// 	log.Println("got proxy request:", request)
-		// 	go w.proxyRequest(dc, &request)
+		case err == nil && len(request.GetAddress()) > 0 && len(request.GetCommand()) > 0:
+			log.Println("got proxy request:", request)
+			go w.proxyRequest(dc, request)
 
 		// Execute request to this server
 		case err == nil && len(request.GetAddress()) == 0 && len(request.GetCommand()) > 0:
@@ -105,8 +105,6 @@ func (w *WebRTC) connected(peer string, dc *teowebrtc_client.DataChannel) {
 
 		// Send echo answer
 		default:
-			// d := []byte("Answer to: ")
-			// data = append(d, data...)
 			data = []byte(fmt.Sprintf(`{"address":"","message":"Answer to: %s"}`, "unknown"))
 			dc.Send(data)
 		}
@@ -115,21 +113,21 @@ func (w *WebRTC) connected(peer string, dc *teowebrtc_client.DataChannel) {
 
 // Process teonet proxy request: Connect to teonet peer, send request, get
 // answer and resend answer to tru sender
-// func (w *WebRTC) proxyRequest(dc *teowebrtc_client.DataChannel, gw *teogw.TeogwData) {
+func (w *WebRTC) proxyRequest(dc *teowebrtc_client.DataChannel, gw TeogwData) {
 
-// 	var err error
+	var data []byte
+	var err error
 
-// 	// Send answer before return
-// 	defer w.answer(dc, gw, err)
+	// Send api request to teonet peer
+	if w.ProxyCall != nil {
+		data, err = w.ProxyCall(gw.GetAddress(), gw.GetCommand(), gw.GetData())
+	} else {
+		err = errors.New("proxy call does not defined")
+	}
 
-// 	// Send api request to teonet peer
-// 	data, err := w.proxyCall(gw.Address, gw.Command, gw.Data)
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	gw.SetData(data)
-// }
+	// Send answer
+	w.answer(dc, gw, gw.GetCommand(), data, err)
+}
 
 // Process this server request
 func (w *WebRTC) serverRequest(peer string, dc *teowebrtc_client.DataChannel,
