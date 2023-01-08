@@ -27,13 +27,14 @@ const (
 
 // WebRTC data and methods receiver
 type WebRTC struct {
-	Peers
+	peers
 	ProxyCall     ProxyCallType
 	MarshalJson   MarshalJsonType
 	UnmarshalJson UnmarshalJsonType
+	Commands
 }
 
-type TeogwData interface {
+type WebRTCData interface {
 	GetID() uint32
 	GetAddress() string
 	GetCommand() string
@@ -41,8 +42,8 @@ type TeogwData interface {
 }
 
 type ProxyCallType func(address, command string, data []byte) ([]byte, error)
-type UnmarshalJsonType func(data []byte) (gwData TeogwData, err error)
-type MarshalJsonType func(gwData TeogwData, command string, inData []byte, inErr error) (data []byte, err error)
+type UnmarshalJsonType func(data []byte) (gwData WebRTCData, err error)
+type MarshalJsonType func(gwData WebRTCData, command string, inData []byte, inErr error) (data []byte, err error)
 
 // Create WebRTC object Start Signal server, start WebRTC server
 func New(signalAddr, signalAddrTls, name string,
@@ -52,8 +53,9 @@ func New(signalAddr, signalAddrTls, name string,
 
 	// Create WebRTC object
 	w = new(WebRTC)
-	w.Peers.Init()
-	w.Subscribe.Init()
+	w.peers.Init()
+	w.Commands.init()
+	w.subscribe.Init()
 	w.MarshalJson = marshalJson
 	w.UnmarshalJson = unmarshalJson
 
@@ -62,6 +64,7 @@ func New(signalAddr, signalAddrTls, name string,
 	time.Sleep(1 * time.Millisecond) // Wait while ws server start
 
 	// Start and process webrtc server
+	// TODO: check Connect error
 	// err = Connect(signalAddr, name, w.connected)
 	// if err != nil {
 	// 	log.Fatalln("connect error:", err)
@@ -77,7 +80,7 @@ func (w *WebRTC) connected(peer string, dc *teowebrtc_client.DataChannel) {
 
 	dc.OnOpen(func() {
 		log.Println("data channel opened", peer)
-		w.Add(peer, dc)
+		w.peers.Add(peer, dc)
 	})
 
 	dc.OnClose(func() {
@@ -113,7 +116,7 @@ func (w *WebRTC) connected(peer string, dc *teowebrtc_client.DataChannel) {
 
 // Process teonet proxy request: Connect to teonet peer, send request, get
 // answer and resend answer to tru sender
-func (w *WebRTC) proxyRequest(dc *teowebrtc_client.DataChannel, gw TeogwData) {
+func (w *WebRTC) proxyRequest(dc *teowebrtc_client.DataChannel, gw WebRTCData) {
 
 	var data []byte
 	var err error
@@ -131,7 +134,7 @@ func (w *WebRTC) proxyRequest(dc *teowebrtc_client.DataChannel, gw TeogwData) {
 
 // Process this server request
 func (w *WebRTC) serverRequest(peer string, dc *teowebrtc_client.DataChannel,
-	gw TeogwData) {
+	gw WebRTCData) {
 
 	var err error
 	var data []byte
@@ -154,9 +157,13 @@ func (w *WebRTC) serverRequest(peer string, dc *teowebrtc_client.DataChannel,
 		w.subscribeRequest(peer, dc, gw)
 		data = []byte("done")
 
-	// Wrong request
+	// Execute commands from Commands
 	default:
-		err = errors.New("wrong request")
+		var ok bool
+		data, err, ok = w.Commands.exec(dc, gw)
+		if !ok {
+			err = errors.New("wrong request")
+		}
 	}
 
 	// Send answer
@@ -175,7 +182,7 @@ func (w *WebRTC) getList() ([]byte, error) {
 
 // Process this server subscribe request
 func (w *WebRTC) subscribeRequest(peer string, dc *teowebrtc_client.DataChannel,
-	gw TeogwData) {
+	gw WebRTCData) {
 
 	request := string(gw.GetData())
 	log.Println("got subscribe request:", request)
@@ -195,7 +202,7 @@ func (w *WebRTC) subscribeRequest(peer string, dc *teowebrtc_client.DataChannel,
 }
 
 // Send answer to data channel
-func (w *WebRTC) answer(dc *teowebrtc_client.DataChannel, gw TeogwData,
+func (w *WebRTC) answer(dc *teowebrtc_client.DataChannel, gw WebRTCData,
 	inCommand string, inData []byte, inErr error) (err error) {
 
 	// Create data from gw, command, data and error and send it to dc
