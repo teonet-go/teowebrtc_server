@@ -1,14 +1,13 @@
 module github.com/teonet-go/teowebrtc_server
 
-replace github.com/teonet-go/teowebrtc_client => ../teowebrtc_client
-
+// replace github.com/teonet-go/teowebrtc_client => ../teowebrtc_client
 // replace github.com/teonet-go/teowebrtc_signal_client => ../teowebrtc_signal_client
 
 go 1.19
 
 require (
 	github.com/pion/webrtc/v3 v3.1.50
-	github.com/teonet-go/teowebrtc_client v0.0.9
+	github.com/teonet-go/teowebrtc_client v0.0.10
 	github.com/teonet-go/teowebrtc_signal v0.0.7
 	github.com/teonet-go/teowebrtc_signal_client v0.0.8
 
