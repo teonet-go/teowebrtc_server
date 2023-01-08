@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Subscribe module of Webrts server package
+// Peers changes Subscribe module of Webrts server package
 
 package teowebrtc_server
 
@@ -53,5 +53,14 @@ func (s *subscribe) del(id interface{}, dc ...*teowebrtc_client.DataChannel) {
 				delete(s.subscribeMap, id)
 			}
 		}
+	}
+}
+
+// Process all functions in subscribe map
+func (s *subscribe) process() {
+	s.RLock()
+	defer s.RUnlock()
+	for _, sd := range s.subscribeMap {
+		sd.f()
 	}
 }

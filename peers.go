@@ -16,7 +16,7 @@ import (
 // peers data and methods receiver
 type peers struct {
 	peersMap
-	*sync.RWMutex
+	mut *sync.RWMutex
 	subscribe
 }
 type peersMap map[string]*teowebrtc_client.DataChannel
@@ -28,13 +28,13 @@ type peerData struct {
 // Init peers object
 func (p *peers) Init() {
 	p.peersMap = make(peersMap)
-	p.RWMutex = new(sync.RWMutex)
+	p.mut = new(sync.RWMutex)
 }
 
 // Add peer to peers map
 func (p *peers) Add(peer string, dc *teowebrtc_client.DataChannel) {
-	p.Lock()
-	defer func() { p.Unlock(); p.changed() }()
+	p.mut.Lock()
+	defer func() { p.mut.Unlock(); p.changed() }()
 
 	// Close data channel to existing connection from this peer
 	if dcCurrent, exists := p.getUnsafe(peer); exists && dcCurrent != dc {
@@ -48,8 +48,8 @@ func (p *peers) Add(peer string, dc *teowebrtc_client.DataChannel) {
 
 // Delete peer from peers map
 func (p *peers) Del(peer string, dc *teowebrtc_client.DataChannel) {
-	p.Lock()
-	defer func() { p.Unlock(); p.changed() }()
+	p.mut.Lock()
+	defer func() { p.mut.Unlock(); p.changed() }()
 
 	dcCurrent, exists := p.getUnsafe(peer)
 	if exists && dcCurrent == dc {
@@ -70,15 +70,15 @@ func (p *peers) getUnsafe(name string) (dc *teowebrtc_client.DataChannel, exists
 
 // Get Len of peers map
 func (p *peers) Len() int {
-	p.RLock()
-	defer p.RUnlock()
+	p.mut.RLock()
+	defer p.mut.RUnlock()
 	return len(p.peersMap)
 }
 
 // Get list channel of peers map
 func (p *peers) ListCh() (ch chan peerData) {
-	p.RLock()
-	defer p.RUnlock()
+	p.mut.RLock()
+	defer p.mut.RUnlock()
 	ch = make(chan peerData)
 	go func() {
 		for name, dc := range p.peersMap {
@@ -105,7 +105,5 @@ func (p *peers) Onchange(peer string, dc *teowebrtc_client.DataChannel, f func()
 
 // Executes when peers map changed
 func (p *peers) changed() {
-	for _, sd := range p.subscribe.subscribeMap {
-		sd.f()
-	}
+	p.subscribe.process()
 }

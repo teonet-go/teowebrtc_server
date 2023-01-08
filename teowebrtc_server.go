@@ -79,7 +79,7 @@ func (w *WebRTC) connected(peer string, dc *teowebrtc_client.DataChannel) {
 	log.Println("connected to", peer)
 
 	dc.OnOpen(func() {
-		log.Println("data channel opened", peer)
+		log.Println("data channel opened", peer, "w.peers:", w.peers, "dc:", dc)
 		w.peers.Add(peer, dc)
 	})
 

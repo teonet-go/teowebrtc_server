@@ -1,6 +1,6 @@
 module github.com/teonet-go/teowebrtc_server
 
-// replace github.com/teonet-go/teowebrtc_client => ../teowebrtc_client
+replace github.com/teonet-go/teowebrtc_client => ../teowebrtc_client
 
 // replace github.com/teonet-go/teowebrtc_signal_client => ../teowebrtc_signal_client
 
