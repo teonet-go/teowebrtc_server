@@ -7,6 +7,8 @@
 package teowebrtc_server
 
 import (
+	"errors"
+	"strings"
 	"sync"
 
 	"github.com/teonet-go/teowebrtc_client"
@@ -34,16 +36,31 @@ func (c *Commands) Add(command string, f CommandFunc) *Commands {
 	return c
 }
 
-// Exrcute command and return true if command find
+// Execute command and return true if command find
 func (c *Commands) exec(dc *teowebrtc_client.DataChannel, gw WebRTCData) (data []byte, err error, ok bool) {
 	c.RLock()
 	defer c.RUnlock()
-	for cmd, f := range c.m {
-		if cmd == gw.GetCommand() {
-			data, err = f(gw)
-			ok = true
-			return
-		}
+
+	// Split command to command and parameters and get command
+	p, _ := c.Params(gw, 0)
+	command := p[0]
+
+	// Execut command
+	f, ok := c.m[command]
+	if ok {
+		data, err = f(gw)
+	}
+
+	return
+}
+
+// Params split command into parameters array. The first element of this array
+// is command, next elements are parameters. The 'number' input argument is
+// number of expected parameters without command.
+func (c *Commands) Params(gw WebRTCData, number int) (params []string, err error) {
+	params = strings.Split(gw.GetCommand(), "/")
+	if len(params) < number+1 {
+		err = errors.New("wrong number of commands parameters")
 	}
 	return
 }
