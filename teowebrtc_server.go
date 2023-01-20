@@ -41,6 +41,11 @@ type WebRTCData interface {
 	GetData() (data []byte)
 }
 
+type DataChannel interface {
+	GetUser() interface{}
+	SetUser(user interface{})
+}
+
 type ProxyCallType func(address, command string, data []byte) ([]byte, error)
 type UnmarshalJsonType func(data []byte) (gwData WebRTCData, err error)
 type MarshalJsonType func(gwData WebRTCData, command string, inData []byte, inErr error) (data []byte, err error)

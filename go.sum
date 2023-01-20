@@ -127,8 +127,8 @@ github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
 github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
-github.com/teonet-go/teowebrtc_client v0.0.10 h1:OE+FW/qI/gXwORZHIj5z9rXDFHawuxMxYznvam2bv0w=
-github.com/teonet-go/teowebrtc_client v0.0.10/go.mod h1:OYnNIYQGjigII/AllCLNEafjeERK/lMJvkFXggOCHR4=
+github.com/teonet-go/teowebrtc_client v0.0.11 h1:6+8gBnRyrwHVh15t2MnVIaPfQkD9Fhank8/NGPxNnWQ=
+github.com/teonet-go/teowebrtc_client v0.0.11/go.mod h1:OYnNIYQGjigII/AllCLNEafjeERK/lMJvkFXggOCHR4=
 github.com/teonet-go/teowebrtc_signal v0.0.7 h1:Dd83AmPORGoIWenT2u/yAiMDqzcMiBR7eJlC5SJSHdI=
 github.com/teonet-go/teowebrtc_signal v0.0.7/go.mod h1:8Et/ikDhWWoy7jpliZPmDFx7ep12m85YF5/v5NQlICs=
 github.com/teonet-go/teowebrtc_signal_client v0.0.8 h1:RyAh3vUe0f4/zcVeNg9Q0I93zhZxxBVpcLIrls0/5jA=

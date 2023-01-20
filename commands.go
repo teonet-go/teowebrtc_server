@@ -10,8 +10,6 @@ import (
 	"errors"
 	"strings"
 	"sync"
-
-	"github.com/teonet-go/teowebrtc_client"
 )
 
 // Commands hold WebRTC server commands
@@ -20,7 +18,7 @@ type Commands struct {
 	*sync.RWMutex
 }
 type commandsMap map[string]CommandFunc
-type CommandFunc func(gw WebRTCData) (data []byte, err error)
+type CommandFunc func(dc DataChannel, gw WebRTCData) (data []byte, err error)
 
 // Init Commands receiver
 func (c *Commands) init() {
@@ -37,7 +35,7 @@ func (c *Commands) Add(command string, f CommandFunc) *Commands {
 }
 
 // Execute command and return true if command find
-func (c *Commands) exec(dc *teowebrtc_client.DataChannel, gw WebRTCData) (data []byte, err error, ok bool) {
+func (c *Commands) exec(dc DataChannel, gw WebRTCData) (data []byte, err error, ok bool) {
 	c.RLock()
 	defer c.RUnlock()
 
@@ -48,7 +46,7 @@ func (c *Commands) exec(dc *teowebrtc_client.DataChannel, gw WebRTCData) (data [
 	// Execut command
 	f, ok := c.m[command]
 	if ok {
-		data, err = f(gw)
+		data, err = f(dc, gw)
 	}
 
 	return
