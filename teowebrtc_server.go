@@ -44,6 +44,7 @@ type WebRTCData interface {
 type DataChannel interface {
 	GetUser() interface{}
 	SetUser(user interface{})
+	Send(data []byte) error
 }
 
 type ProxyCallType func(address, command string, data []byte) ([]byte, error)
