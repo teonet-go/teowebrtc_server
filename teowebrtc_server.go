@@ -100,16 +100,15 @@ func (w *WebRTC) connected(peer string, dc *teowebrtc_client.DataChannel) {
 
 		// Unmarshal json command
 		request, err := w.UnmarshalJson(data)
-		log.Println("request:", request, err)
 		switch {
 		// Send teonet proxy request
 		case err == nil && len(request.GetAddress()) > 0 && len(request.GetCommand()) > 0:
-			log.Println("got proxy request:", request)
+			log.Println("got proxy request:", request.GetCommand())
 			go w.proxyRequest(dc, request)
 
 		// Execute request to this server
 		case err == nil && len(request.GetAddress()) == 0 && len(request.GetCommand()) > 0:
-			log.Println("got server request:", request)
+			log.Println("got server request:", request.GetCommand())
 			go w.serverRequest(peer, dc, request)
 
 		// Send echo answer
