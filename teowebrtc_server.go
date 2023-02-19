@@ -51,7 +51,7 @@ type ProxyCallType func(address, command string, data []byte) ([]byte, error)
 type UnmarshalJsonType func(data []byte) (gwData WebRTCData, err error)
 type MarshalJsonType func(gwData WebRTCData, command string, inData []byte, inErr error) (data []byte, err error)
 type ConnectedType func(peer string, dc *teowebrtc_client.DataChannel, onOpenClose ...OnOpenCloseType)
-type OnOpenCloseType func(peer string, dc *teowebrtc_client.DataChannel)
+type OnOpenCloseType func(peer string, dc DataChannel)
 
 // Create WebRTC object Start Signal server, start WebRTC server
 func New(signalAddr, signalAddrTls, name string, marshalJson MarshalJsonType,
