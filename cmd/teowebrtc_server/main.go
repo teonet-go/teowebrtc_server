@@ -20,22 +20,28 @@ func main() {
 	flag.Parse()
 	log.SetFlags(0)
 
-	err := teowebrtc_server.Connect(*addr, *name, func(peer string, dc *teowebrtc_client.DataChannel) {
-		log.Println("connected to", peer)
+	err := teowebrtc_server.Connect(
+		*addr,
+		*name,
+		func(peer string, dc *teowebrtc_client.DataChannel,
+			onOpenClose ...teowebrtc_server.OnOpenCloseType) {
 
-		dc.OnOpen(func() {
-			log.Println("data channel opened", peer)
-		})
+			log.Println("connected to", peer)
 
-		// Register text message handling
-		dc.OnMessage(func(data []byte) {
-			log.Printf("got Message from peer '%s': '%s'\n", peer, string(data))
-			// Send echo answer
-			d := []byte("Answer to: ")
-			data = append(d, data...)
-			dc.Send(data)
-		})
-	})
+			dc.OnOpen(func() {
+				log.Println("data channel opened", peer)
+			})
+
+			// Register text message handling
+			dc.OnMessage(func(data []byte) {
+				log.Printf("got Message from peer '%s': '%s'\n", peer, data)
+				// Send echo answer
+				d := []byte("Answer to: ")
+				data = append(d, data...)
+				dc.Send(data)
+			})
+		},
+	)
 	if err != nil {
 		log.Fatalln("connect error:", err)
 	}

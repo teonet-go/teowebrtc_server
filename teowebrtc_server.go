@@ -50,11 +50,12 @@ type DataChannel interface {
 type ProxyCallType func(address, command string, data []byte) ([]byte, error)
 type UnmarshalJsonType func(data []byte) (gwData WebRTCData, err error)
 type MarshalJsonType func(gwData WebRTCData, command string, inData []byte, inErr error) (data []byte, err error)
+type ConnectedType func(peer string, dc *teowebrtc_client.DataChannel, onOpenClose ...OnOpenCloseType)
+type OnOpenCloseType func(peer string, dc *teowebrtc_client.DataChannel)
 
 // Create WebRTC object Start Signal server, start WebRTC server
-func New(signalAddr, signalAddrTls, name string,
-	marshalJson MarshalJsonType,
-	unmarshalJson UnmarshalJsonType,
+func New(signalAddr, signalAddrTls, name string, marshalJson MarshalJsonType,
+	unmarshalJson UnmarshalJsonType, onOpenClose ...OnOpenCloseType,
 ) (w *WebRTC, err error) {
 
 	// Create WebRTC object
@@ -75,22 +76,29 @@ func New(signalAddr, signalAddrTls, name string,
 	// if err != nil {
 	// 	log.Fatalln("connect error:", err)
 	// }
-	go Connect(signalAddr, name, w.connected)
+	go Connect(signalAddr, name, w.connected, onOpenClose...)
 
 	return
 }
 
 // Connected calls when a peer connected and Data channel created
-func (w *WebRTC) connected(peer string, dc *teowebrtc_client.DataChannel) {
+func (w *WebRTC) connected(peer string, dc *teowebrtc_client.DataChannel,
+	onOpenClose ...OnOpenCloseType) {
 	log.Println("connected to", peer)
 
 	dc.OnOpen(func() {
 		log.Println("data channel opened", peer, "w.peers:", w.peers, "dc:", dc)
+		if len(onOpenClose) > 0 {
+			onOpenClose[0](peer, dc)
+		}
 		w.peers.Add(peer, dc)
 	})
 
 	dc.OnClose(func() {
 		log.Println("data channel closed", peer)
+		if len(onOpenClose) > 1 {
+			onOpenClose[1](peer, dc)
+		}
 		w.Del(peer, dc)
 	})
 
@@ -220,8 +228,8 @@ func (w *WebRTC) answer(dc *teowebrtc_client.DataChannel, gw WebRTCData,
 }
 
 // Connect to existing signal server and start WebRCT server
-func Connect(signalServerAddr, login string,
-	connected func(peer string, dc *teowebrtc_client.DataChannel)) (err error) {
+func Connect(signalServerAddr, login string, connected ConnectedType,
+	onOpenClose ...OnOpenCloseType) (err error) {
 
 	// Create signal server client
 	signal := teowebrtc_signal_client.New()
@@ -316,7 +324,7 @@ connect:
 
 		pc.OnDataChannel(func(dc *webrtc.DataChannel) {
 			log.Printf("new DataChannel %s %d\n", dc.Label(), dc.ID())
-			connected(peer, teowebrtc_client.NewDataChannel(dc))
+			connected(peer, teowebrtc_client.NewDataChannel(dc), onOpenClose...)
 		})
 
 		// Set the remote SessionDescription
