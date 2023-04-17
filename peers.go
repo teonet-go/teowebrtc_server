@@ -7,7 +7,6 @@
 package teowebrtc_server
 
 import (
-	"log"
 	"sync"
 
 	"github.com/teonet-go/teowebrtc_client"

@@ -9,11 +9,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/pion/webrtc/v3"
 	"github.com/teonet-go/teowebrtc_client"
+	"github.com/teonet-go/teowebrtc_log"
 	"github.com/teonet-go/teowebrtc_signal"
 	"github.com/teonet-go/teowebrtc_signal_client"
 )
@@ -53,6 +53,8 @@ type MarshalJsonType func(gwData WebRTCData, command string, inData []byte, inEr
 type ConnectedType func(peer string, dc *teowebrtc_client.DataChannel, onOpenClose ...OnOpenCloseType)
 type OnOpenCloseType func(peer string, dc DataChannel)
 
+var log = teowebrtc_log.GetLog(teowebrtc_log.Package_teowebrtc_server)
+
 // Create WebRTC object Start Signal server, start WebRTC server
 func New(signalAddr, signalAddrTls, name string, marshalJson MarshalJsonType,
 	unmarshalJson UnmarshalJsonType, onOpenClose ...OnOpenCloseType,
@@ -87,7 +89,7 @@ func (w *WebRTC) connected(peer string, dc *teowebrtc_client.DataChannel,
 	log.Println("connected to", peer)
 
 	dc.OnOpen(func() {
-		log.Println("data channel opened", peer, "w.peers:", w.peers, "dc:", dc)
+		log.Println("data channel opened", peer)
 		if len(onOpenClose) > 0 {
 			onOpenClose[0](peer, dc)
 		}
@@ -104,19 +106,19 @@ func (w *WebRTC) connected(peer string, dc *teowebrtc_client.DataChannel,
 
 	// Register text message handling
 	dc.OnMessage(func(data []byte) {
-		log.Printf("got message from peer '%s': '%s'\n", peer, string(data))
+		// log.Printf("got message from peer '%s': '%s'\n", peer, string(data))
 
 		// Unmarshal json command
 		request, err := w.UnmarshalJson(data)
 		switch {
 		// Send teonet proxy request
 		case err == nil && len(request.GetAddress()) > 0 && len(request.GetCommand()) > 0:
-			log.Println("got proxy request:", request.GetCommand())
+			log.Printf("got proxy request: %s, from: %s", request.GetCommand(), peer)
 			go w.proxyRequest(dc, request)
 
 		// Execute request to this server
 		case err == nil && len(request.GetAddress()) == 0 && len(request.GetCommand()) > 0:
-			log.Println("got server request:", request.GetCommand())
+			log.Printf("got server request: %s, from: %s", request.GetCommand(), peer)
 			go w.serverRequest(peer, dc, request)
 
 		// Send echo answer
@@ -198,7 +200,7 @@ func (w *WebRTC) subscribeRequest(peer string, dc *teowebrtc_client.DataChannel,
 	gw WebRTCData) {
 
 	request := string(gw.GetData())
-	log.Println("got subscribe request:", request)
+	log.Printf("got subscribe request: %s, from %s", request, peer)
 	switch request {
 	case cmdClients:
 		w.Onchange(peer, dc, func() {
