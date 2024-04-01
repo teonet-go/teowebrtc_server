@@ -1,4 +1,4 @@
-// Copyright 2021-2023 Kirill Scherba <kirill@scherba.ru>. All rights reserved.
+// Copyright 2021-2024 Kirill Scherba <kirill@scherba.ru>. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -56,8 +56,9 @@ type OnOpenCloseType func(peer string, dc DataChannel)
 var log = teowebrtc_log.GetLog(teowebrtc_log.Package_teowebrtc_server)
 
 // Create WebRTC object Start Signal server, start WebRTC server
-func New(signalAddr, signalAddrTls, name string, marshalJson MarshalJsonType,
-	unmarshalJson UnmarshalJsonType, onOpenClose ...OnOpenCloseType,
+func New(signalAddr string, ownSignal bool, name string,
+	marshalJson MarshalJsonType, unmarshalJson UnmarshalJsonType,
+	onOpenClose ...OnOpenCloseType,
 ) (w *WebRTC, err error) {
 
 	// Create WebRTC object
@@ -69,8 +70,10 @@ func New(signalAddr, signalAddrTls, name string, marshalJson MarshalJsonType,
 	w.UnmarshalJson = unmarshalJson
 
 	// Start and process signal server
-	go teowebrtc_signal.New(signalAddr, signalAddrTls)
-	time.Sleep(1 * time.Millisecond) // Wait while ws server start
+	if ownSignal {
+		go teowebrtc_signal.New(signalAddr, "")
+		time.Sleep(1 * time.Millisecond) // Wait while ws server started
+	}
 
 	// Start and process webrtc server
 	// TODO: check Connect error
@@ -240,11 +243,24 @@ connect:
 	// Connect to signal server
 	err = signal.Connect("ws", signalServerAddr, login)
 	if err != nil {
-		log.Println("can't connect to signal server, error:", err)
-		time.Sleep(5 * time.Second)
-		goto connect
+		// msg := "can't connect to signal server, error:"
+		log.Println(err)
+		err = signal.Connect("wss", signalServerAddr, login)
+		if err != nil {
+			log.Println(err)
+			time.Sleep(5 * time.Second)
+			goto connect
+		}
 	}
 	log.Println("connected")
+
+	// Ping signal server
+	go func() {
+		for {
+			time.Sleep(45 * time.Second)
+			signal.Ping()
+		}
+	}()
 
 	var skipRead = false
 
