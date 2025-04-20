@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pion/webrtc/v3"
+	"github.com/pion/webrtc/v4"
 	"github.com/teonet-go/teowebrtc_client"
 	"github.com/teonet-go/teowebrtc_log"
 	"github.com/teonet-go/teowebrtc_signal"
@@ -329,12 +329,12 @@ connect:
 		})
 
 		// Check ICEGathering state
-		pc.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {
+		pc.OnICEGatheringStateChange(func(state webrtc.ICEGatheringState) {
 			switch state {
-			case webrtc.ICEGathererStateGathering:
+			case webrtc.ICEGatheringStateGathering:
 				log.Println("collection of local candidates has begin")
 
-			case webrtc.ICEGathererStateComplete:
+			case webrtc.ICEGatheringStateComplete:
 				log.Println("collection of local candidates is finished")
 				signal.WriteCandidate(peer, nil)
 			}
